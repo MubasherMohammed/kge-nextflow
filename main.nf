@@ -39,7 +39,7 @@ include { FASTQC_READS       } from './modules/fastqc'
 include { MAGECK_COUNT        } from './modules/mageck_count'
 include { MAGECK_TEST_RRA     } from './modules/mageck_test'
 include { MAGECK_MLE_ANALYSIS } from './modules/mageck_mle'
-include { KGE_REPORT          } from './modules/kge_report'
+include { KGE_REPORT           } from './modules/kge_report'
 include { MULTIQC_REPORT      } from './modules/multiqc'
 
 // ============================================================================
@@ -118,8 +118,8 @@ workflow {
     // RRA: iterate over comparison pairs from --comparisons file
     // ==================================================================
 
-    rra_gene_summaries  = Channel.empty().collect()
-    rra_sgrna_summaries = Channel.empty().collect()
+    gene_summaries_ch  = Channel.empty()
+    sgrna_summaries_ch = Channel.empty()
 
     if (params.comparisons) {
         // Parse the comparisons TSV: one (treatment, control) pair per row
@@ -133,17 +133,15 @@ workflow {
             params
         )
 
-        rra_gene_summaries  = MAGECK_TEST_RRA.out.gene_summary.collect()
-        rra_sgrna_summaries = MAGECK_TEST_RRA.out.sgrna_summary.collect()
+        gene_summaries_ch  = gene_summaries_ch.concat(MAGECK_TEST_RRA.out.gene_summary)
+        sgrna_summaries_ch = sgrna_summaries_ch.concat(MAGECK_TEST_RRA.out.sgrna_summary)
     }
 
     // ==================================================================
     // MLE: requires --design_matrix
     // ==================================================================
 
-    mle_gene_summaries  = Channel.empty().collect()
-    mle_sgrna_summaries = Channel.empty().collect()
-    design_matrix_ch     = Channel.empty().collect()
+    design_matrix_ch = Channel.empty()
 
     if (params.design_matrix) {
         MAGECK_MLE_ANALYSIS(
@@ -151,9 +149,22 @@ workflow {
             file(params.design_matrix, checkIfExists: true),
             params
         )
-        mle_gene_summaries  = MAGECK_MLE_ANALYSIS.out.gene_summary.collect()
-        mle_sgrna_summaries = MAGECK_MLE_ANALYSIS.out.sgrna_summary.collect()
-        design_matrix_ch     = Channel.fromPath(params.design_matrix).collect()
+
+        gene_summaries_ch  = gene_summaries_ch.concat(MAGECK_MLE_ANALYSIS.out.gene_summary)
+        sgrna_summaries_ch = sgrna_summaries_ch.concat(MAGECK_MLE_ANALYSIS.out.sgrna_summary)
+
+        design_matrix_ch = Channel.fromPath(params.design_matrix)
+    }
+
+    // Collect all summaries into lists for KGE_REPORT
+    gene_summaries_collected   = gene_summaries_ch.collect()
+    sgrna_summaries_collected  = sgrna_summaries_ch.collect()
+
+    // Design matrix: real file or NO_DESIGN_MATRIX marker for RRA-only mode
+    if (params.design_matrix) {
+        // Already assigned above — keep it as-is (Channel.fromPath)
+    } else {
+        design_matrix_ch = Channel.fromPath('assets/NO_DESIGN_MATRIX')
     }
 
     // ==================================================================
@@ -163,10 +174,8 @@ workflow {
     if (params.html_report) {
         KGE_REPORT(
             count_table_ch,
-            rra_gene_summaries,
-            rra_sgrna_summaries,
-            mle_gene_summaries,
-            mle_sgrna_summaries,
+            gene_summaries_collected,
+            sgrna_summaries_collected,
             design_matrix_ch,
             params
         )

@@ -25,4 +25,4 @@ report.html
 dag.dot
 dag.svg
 .nextflow.log
-nextflow.log
+nextflow.log.sisyphus/
