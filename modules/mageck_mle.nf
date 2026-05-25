@@ -58,10 +58,6 @@ process MAGECK_MLE_ANALYSIS {
         OPT_ARGS="\${OPT_ARGS} --permutation-round ${params_obj.permutation_round}"
     fi
 
-    if [ "${params_obj.html_report}" = "true" ] || [ "${params_obj.html_report}" = true ]; then
-        OPT_ARGS="\${OPT_ARGS} --html-report"
-    fi
-
     echo "[MAGECK_MLE] Running: mageck mle -k ${count_table} -d ${design_matrix} \${OPT_ARGS} -n ${prefix}"
 
     mageck mle \\

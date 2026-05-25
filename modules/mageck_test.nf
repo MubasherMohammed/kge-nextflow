@@ -51,9 +51,6 @@ process MAGECK_TEST_RRA {
     if [ "${params_obj.gene_lfc_method}" != "median" ]; then
         OPT_ARGS="\${OPT_ARGS} --gene-lfc-method ${params_obj.gene_lfc_method}"
     fi
-    if [ "${params_obj.html_report}" = "true" ] || [ "${params_obj.html_report}" = true ]; then
-        OPT_ARGS="\${OPT_ARGS} --html-report"
-    fi
 
     mageck test \\
         -k "${count_table}" \\
