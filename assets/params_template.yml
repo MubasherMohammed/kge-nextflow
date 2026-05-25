@@ -1,0 +1,91 @@
+# KGE Pipeline Parameter Reference
+# ==================================
+# Copy this file and edit values to configure the pipeline.
+# Then run: nextflow run kge -profile conda -params-file my-params.yml
+#
+# Alternatively, pass parameters on the command line:
+#   nextflow run kge -profile conda --library_file lib.txt --fastq_dir ./fq ...
+
+# ============================================================================
+# INPUT — Demultiplexing (BCL → FASTQ)
+# ============================================================================
+# Set demultiplex=true to start from raw Illumina BCL files.
+# Requires --run_folder and --sample_sheet.
+demultiplex: false           # Enable BCL → FASTQ conversion
+run_folder: ''                # Path to Illumina run folder
+sample_sheet: ''              # Path to SampleSheet.csv
+bcl_converter: 'bcl-convert'  # 'bcl-convert' or 'bcl2fastq'
+
+# ============================================================================
+# INPUT — FASTQ (skip demux)
+# ============================================================================
+# If demultiplex=false, provide FASTQ files directly.
+fastq_dir: ''                 # Directory containing FASTQ files
+fastq_pattern: '*{R1,R2}_*{fastq,fastq.gz,fq,fq.gz}'
+
+# ============================================================================
+# LIBRARY & SAMPLE METADATA
+# ============================================================================
+library_file: ''              # sgRNA library file (REQUIRED)
+sample_labels: ''             # Comma-sep sample labels, e.g. "Treat,Control"
+treatment_ids: ''              # Comma-sep treatment IDs for RRA, e.g. "Treat"
+control_ids: ''                # Comma-sep control IDs for RRA, e.g. "Control"
+
+# ============================================================================
+# ANALYSIS MODE
+# ============================================================================
+# 'rra'   — Robust Rank Aggregation (standard screen)
+# 'mle'   — Maximum Likelihood Estimation (multi-condition)
+# 'both'  — Run RRA + MLE sequentially
+analyze_mode: 'rra'
+day0_label: ''                 # Auto-compare all vs this control
+
+# ============================================================================
+# MAGeCK COUNT OPTIONS
+# ============================================================================
+norm_method: 'median'          # 'none', 'median', 'total', 'control'
+control_sgrna: ''              # File with control sgRNA IDs
+control_gene: ''               # File with control gene names
+sgrna_len: 20                  # sgRNA length (default 20)
+trim5: 'AUTO'                  # 5' trim length or 'AUTO'
+count_n: false                 # Count sgRNAs with N bases
+reverse_complement: false       # Reverse complement library sequences
+
+# ============================================================================
+# MAGeCK TEST (RRA) OPTIONS
+# ============================================================================
+adjust_method: 'fdr'           # 'fdr', 'holm', 'pounds'
+gene_test_fdr_threshold: 0.25
+remove_zero: 'both'            # 'none','control','treatment','both','any'
+gene_lfc_method: 'median'      # 'median','mean','alphamedian','alphamean','secondbest'
+
+# ============================================================================
+# MAGeCK MLE OPTIONS
+# ============================================================================
+design_matrix: ''              # Design matrix file (REQUIRED for MLE)
+include_samples: ''             # Comma-sep sample labels for MLE
+beta_labels: ''                 # Comma-sep beta labels
+threads: 1                      # CPU threads for MLE
+permutation_round: 2            # Permutation rounds
+
+# ============================================================================
+# HTML REPORT OPTIONS
+# ============================================================================
+html_report: true               # Generate interactive HTML report
+skip_enrichment: false          # Skip pathway enrichment
+enrichment_top_n: 50            # Top genes for enrichment
+enrichment_fdr: 0.05            # FDR for enrichment significance
+organism: 'human'               # 'human' or 'mouse'
+fdr_threshold: 0.05             # FDR threshold for volcano plots
+top_n: 20                       # Top genes to label on plots
+
+# ============================================================================
+# QC OPTIONS
+# ============================================================================
+fastqc: true                   # Run FastQC
+multiqc: true                   # Run MultiQC aggregation
+
+# ============================================================================
+# OUTPUT
+# ============================================================================
+output_dir: './results'

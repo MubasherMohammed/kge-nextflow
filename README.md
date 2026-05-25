@@ -1,112 +1,197 @@
-# KGE — MAGeCK with Interactive HTML Reports
+# kge — CRISPR KO Screen Analysis Pipeline
 
-Enhanced [MAGeCK](https://sourceforge.net/p/mageck/wiki/Home/) (v0.5.9.5) with interactive Plotly-based HTML reports, pathway enrichment analysis, and FLUTE-style gene classification.
+Nextflow pipeline for end-to-end CRISPR-Cas9 knockout screen analysis: **flowcell demultiplexing → MAGeCK count/test/MLE → interactive KGE HTML report**.
 
-## Features
-
-- **Interactive Plotly plots** — zoom, pan, hover, and export all QC and results plots
-- **Dynamic gene tables** — sort, filter, search, and paginate across all genes (not just top 20)
-- **GO/Hallmark pathway enrichment** — ORA via decoupler with interactive dot plots
-- **FLUTE-style nine-square plot** — 4-group gene classification for MLE treatment analysis
-- **sgRNA line plots** — click genes in tables to visualize sgRNA-level fold changes
-- **Sample description section** — dataset overview with design matrix and detected files
-- **Download section** — one-click CSV downloads for all gene summary files
+```
+BCL/run_folder ──► DEMULTIPLEX ──► FASTQC ──► MAGeCK COUNT ──► MAGeCK TEST (RRA)
+                                                        │              │
+                                                        └──► MAGeCK MLE ──┘
+                                                                              │
+                                                              KGE REPORT (HTML) ◄┘
+                                                                       │
+                                                              MULTIQC ◄──────────┘
+```
 
 ## Quick Start
-
-### Prerequisites
-
-- [Miniconda](https://docs.conda.io/en/latest/miniconda.html) or Anaconda
 
 ### Install
 
 ```bash
-git clone https://github.com/<your-username>/KGE.git
-cd KGE
+# 1. Install Nextflow (if not already installed)
+curl -fsSL https://get.nextflow.io | bash
+
+# 2. Clone the pipeline
+git clone https://github.com/MubasherMohammed/kge-nextflow.git
+cd kge-nextflow
+
+# 3. Install KGE-modified MAGeCK (creates conda env 'mageckenv')
 bash install.sh
-```
-
-This creates a conda environment `mageckenv` with all dependencies and installs the modified MAGeCK package.
-
-To use a custom environment name:
-
-```bash
-bash install.sh my_custom_env
-```
-
-### Activate
-
-```bash
 conda activate mageckenv
 ```
 
-### Usage
+### Run
 
-All standard MAGeCK commands work as before, with the added `--html-report` flag and the new `report` subcommand:
+**From FASTQ — standard screen (most common):**
 
 ```bash
-# Count sgRNAs from FASTQ files
-mageck count -l library.txt -n experiment \
-  --sample-label Treat,Control \
-  --fastq treat.fastq control.fastq \
-  --html-report
-
-# RRA test
-mageck test -k experiment.count.txt \
-  -t Treat -c Control -n experiment \
-  --html-report
-
-# MLE analysis
-mageck mle -k counts.csv -d design.txt \
-  -n experiment --html-report
-
-# Standalone report generation
-mageck report -n experiment -k counts.csv
+nextflow run kge -profile conda \
+  --library_file library.txt \
+  --fastq_dir ./fastq \
+  --sample_labels "Treat_R1,Treat_R2,Ctrl_R1,Ctrl_R2" \
+  --treatment_ids "Treat_R1,Treat_R2" \
+  --control_ids "Ctrl_R1,Ctrl_R2"
 ```
 
-### Report Subcommand Options
+**From BCL — full pipeline starting at demultiplexing:**
 
-```
-mageck report -n NAME -k COUNT_TABLE [options]
-
-Required:
-  -n, --output-prefix    Output prefix (used to find gene_summary files)
-  -k, --count-table      Read count table file
-
-Optional:
-  --gene-summary FILE [FILE ...]   Additional gene summary files
-  --skip-enrichment                Skip GO/Hallmark enrichment analysis
-  --enrichment-top-n N             Number of top genes for enrichment (default: 50)
-  --enrichment-fdr F               FDR cutoff for enrichment (default: 0.05)
-  --organism ORGANISM              Organism for pathway DB (default: human)
+```bash
+nextflow run kge -profile conda \
+  --demultiplex \
+  --run_folder /data/illumina_run \
+  --sample_sheet SampleSheet.csv \
+  --library_file library.txt \
+  --treatment_ids "Treat" \
+  --control_ids "Control"
 ```
 
-## What's Modified
+**MLE mode — multi-condition analysis:**
 
-These files contain modifications from the original MAGeCK v0.5.9.5:
+```bash
+nextflow run kge -profile conda \
+  --library_file library.txt \
+  --fastq_dir ./fastq \
+  --analyze_mode mle \
+  --design_matrix design.txt \
+  --sample_labels "ETP_R1,ETP_R2,Ctrl_6d_R1,Ctrl_6d_R2,Drug_6d_R1,Drug_6d_R2"
+```
 
-| File | Changes |
-|------|---------|
-| `mageck/htmlReport.py` | New file — complete interactive HTML report generator |
-| `mageck/argsParser.py` | Added `report` subcommand and enrichment arguments |
-| `mageck/crisprFunction.py` | Added `mageck_report_main` import and hook |
-| `mageck/mlemageck.py` | Fixed numpy array isinstance check for design matrix |
-| `mageck/cnv_normalization.py` | Fixed numpy.str_ decode and np.float deprecation |
-| `mageck/cli.py` | New entry point with report subcommand support |
+**RRA + MLE combined:**
 
-## Environment
+```bash
+nextflow run kge -profile conda \
+  --library_file library.txt \
+  --fastq_dir ./fastq \
+  --analyze_mode both \
+  --treatment_ids "Treat" \
+  --control_ids "Control" \
+  --design_matrix design.txt
+```
 
-The conda environment includes:
+**Using a parameters file:**
 
-- **Python 3.11**
-- **MAGeCK 0.5.9.5** (base from bioconda)
-- **Plotly 6.x** — interactive plots
-- **decoupler 2.x** — pathway enrichment (ORA)
-- **scanpy, anndata** — single-cell ecosystem
-- **scikit-learn, scipy, statsmodels** — statistical analysis
-- **matplotlib, seaborn** — static plotting (used by original MAGeCK)
-- **PyDESeq2** — differential expression
+```bash
+cp assets/params_template.yml my-params.yml
+# edit my-params.yml with your settings
+nextflow run kge -profile conda -params-file my-params.yml
+```
+
+## Profiles
+
+| Profile | Executor | Container | Use Case |
+|---------|----------|-----------|----------|
+| `conda` | local | conda | Local workstation |
+| `docker` | local | Docker | Local with Docker |
+| `singularity` | local | Singularity | HPC cluster |
+| `slurm` | SLURM | — | SLURM cluster (combine with conda/singularity) |
+| `dardel` | local | conda | PDC/KTH Dardel |
+
+```bash
+nextflow run kge -profile docker ...
+nextflow run kge -profile singularity,slurm ...
+nextflow run kge -profile dardel ...
+```
+
+## Pipeline Stages
+
+| Stage | Tool | Description |
+|-------|------|-------------|
+| DEMULTIPLEX | bcl-convert / bcl2fastq | BCL → FASTQ conversion |
+| FASTQC | FastQC | Pre-alignment quality control |
+| MAGeCK COUNT | mageck count | sgRNA read counting + normalization |
+| MAGeCK TEST | mageck test | RRA statistical test (gene-level) |
+| MAGeCK MLE | mageck mle | MLE analysis (multi-condition) |
+| KGE REPORT | mageck report | Interactive Plotly HTML report |
+| MULTIQC | MultiQC | Aggregate QC report |
+
+## Output Structure
+
+```
+results/
+├── demultiplex/          # FASTQ files from BCL conversion
+├── fastqc/               # FastQC HTML reports
+├── mageck_count/         # Count table + normalized counts + QC
+│   ├── *.count.txt
+│   ├── *.count_normalized.txt
+│   └── *.countsummary.txt
+├── mageck_test/          # RRA results
+│   ├── *.gene_summary.txt
+│   └── *.sgrna_summary.txt
+├── mageck_mle/           # MLE results (if mode=mle or both)
+│   ├── *.gene_summary.txt
+│   └── *.sgrna_summary.txt
+├── kge_report/           # Interactive HTML report
+│   ├── *.report.html
+│   └── *_report_data/
+└── multiqc/              # Aggregated QC report
+    └── multiqc_report.html
+```
+
+## Key Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--library_file` | *required* | sgRNA library file |
+| `--fastq_dir` | `''` | Directory containing FASTQ files |
+| `--demultiplex` | `false` | Enable BCL → FASTQ conversion |
+| `--run_folder` | `''` | Illumina run folder (with `--demultiplex`) |
+| `--sample_sheet` | `''` | SampleSheet.csv (with `--demultiplex`) |
+| `--analyze_mode` | `rra` | `rra`, `mle`, or `both` |
+| `--treatment_ids` | `''` | Treatment sample labels (RRA) |
+| `--control_ids` | `''` | Control sample labels (RRA) |
+| `--day0_label` | `''` | Auto-compare all vs this control |
+| `--design_matrix` | `''` | Design matrix file (MLE) |
+| `--html_report` | `true` | Generate interactive HTML report |
+| `--organism` | `human` | `human` or `mouse` |
+| `--norm_method` | `median` | `none`, `median`, `total`, `control` |
+| `--skip_enrichment` | `false` | Skip pathway enrichment |
+| `--enrichment_top_n` | `50` | Top genes for enrichment |
+| `--output_dir` | `./results` | Output directory |
+
+Full parameter reference: `assets/params_template.yml`
+
+## Library File Format
+
+Tab-separated, 3 columns: `sgRNA_ID  sequence  gene_name`
+
+```
+sgRNA_001   GGTGCGCGAATCCCTCGATT   AAAS
+sgRNA_002   GACCCGTCGTAGCAGCCACT   AAAS
+sgRNA_003   GGGCGCGCCATCCGCGCCGA   AAAS
+NonTarget_1 AAAAAAAAAAAAAAAAAAAA    NonTargetingControl
+```
+
+See `assets/library_template.txt` for detailed instructions.
+
+## Design Matrix Format (MLE)
+
+Tab-separated. Column 1 = sample names (matching count table header). Remaining columns = condition indicators (0/1).
+
+```
+Sample    baseline  Drug_6d
+ETP_R1       1         0
+ETP_R2       1         0
+Drug_6d_R1   1         1
+Drug_6d_R2   1         1
+```
+
+See `assets/design_matrix_template.txt` for more examples.
+
+## Credits
+
+- **MAGeCK** — Wei Li, Han Xu, Xiaole Liu lab (BSD License)
+- **KGE enhancements** — Interactive Plotly reports, pathway enrichment, FLUTE-style classification
+- **Pipeline framework** — Nextflow
 
 ## License
 
-MAGeCK is distributed under the BSD License. See the original [MAGeCK repository](https://bitbucket.org/liulab/mageck/src/master/) for details. The HTML report modifications in this repository are provided under the same license.
+BSD License (same as MAGeCK).

@@ -1,0 +1,28 @@
+# KGE-nextflow Design Matrix Template (for MLE analysis)
+# Format: tab-separated
+#   Column 1: Sample name (must match count table header)
+#   Columns 2+: Condition indicators (0 or 1)
+#
+# Example: Two-condition CRISPR screen
+#   Sample  Control  Treatment
+#   Ctrl_R1    1        0
+#   Ctrl_R2    1        0
+#   Treat_R1   1        1
+#   Treat_R2   1        1
+#
+# Example: Time-series with drug treatment
+#   Sample    baseline  Drug_6d
+#   ETP_R1       1         0
+#   ETP_R2       1         0
+#   Ctrl_6d_R1   1         0
+#   Ctrl_6d_R2   1         0
+#   Drug_6d_R1   1         1
+#   Drug_6d_R2   1         1
+#
+# Notes:
+#   - Column 1 must exactly match sample names in the count table header
+#   - Baseline condition uses all 1s (reference group)
+#   - Each subsequent column represents a condition/treatment effect
+#   - 0 = sample does NOT belong to that condition
+#   - 1 = sample DOES belong to that condition
+#   - See MAGeCK MLE documentation for more complex designs

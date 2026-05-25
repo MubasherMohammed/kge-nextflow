@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# KGE-nextflow wrapper: ensures KGE-modified MAGeCK is used
+# when running from a conda environment or after install.sh overlay.
+# This script delegates to the installed `mageck` binary.
+set -euo pipefail
+
+# Use the KGE-modified mageck from the active conda environment
+MAGECK_BIN="$(command -v mageck 2>/dev/null || true)"
+
+if [ -z "${MAGECK_BIN}" ]; then
+    echo "ERROR: mageck not found in PATH."
+    echo "  Activate the mageckenv conda environment:"
+    echo "    conda activate mageckenv"
+    exit 1
+fi
+
+exec "${MAGECK_BIN}" "$@"

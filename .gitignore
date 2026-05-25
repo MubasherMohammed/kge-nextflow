@@ -13,3 +13,16 @@ build/
 .env
 .vscode/
 .idea/
+
+# Nextflow
+.nextflow*
+nextflow.config.*.bak
+results/
+work/
+timeline.html
+trace.txt
+report.html
+dag.dot
+dag.svg
+.nextflow.log
+nextflow.log

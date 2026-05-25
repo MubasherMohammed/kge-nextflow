@@ -1,0 +1,23 @@
+# KGE-nextflow sgRNA Library File Template
+# Format: tab-separated with 3 columns
+#   Column 1: sgRNA ID (unique identifier)
+#   Column 2: sgRNA sequence (20-mer target sequence)
+#   Column 3: Target gene name
+#
+# Example for a Brunstein-like human CRISPR library:
+#   sgRNA_001	GGTGCGCGAATCCCTCGATT	AAAS
+#   sgRNA_002	GACCCGTCGTAGCAGCCACT	AAAS
+#   sgRNA_003	GGGCGCGCCATCCGCGCCGA	AAAS
+#   sgRNA_004	GTTCTCGCTGTCACCGAGAA	AAAS
+#   sgRNA_005	CTCACCTCCCGCGTCTTCGA	AACS
+#
+# For GeCKO v2 library, download from:
+#   http://genome-scale.stem.washington.edu/shalem/gecko/
+#
+# Notes:
+#   - Sequences should be in 5'→3' orientation (sense strand)
+#   - Use --reverse-complement flag if your library provides
+#     sequences on the antisense strand
+#   - Each gene should have 3-6 sgRNAs for robust statistics
+#   - Include non-targeting controls for normalization
+#   - The file can be tab-separated (.txt) or comma-separated (.csv)

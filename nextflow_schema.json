@@ -1,0 +1,219 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "KGE-nextflow Pipeline Parameters",
+    "description": "Parameter schema for the KGE CRISPR KO screen analysis Nextflow pipeline",
+    "type": "object",
+    "properties": {
+        "demultiplex": {
+            "type": "boolean",
+            "default": false,
+            "description": "Start from BCL files and demultiplex"
+        },
+        "run_folder": {
+            "type": "string",
+            "default": "",
+            "description": "Path to Illumina run folder (BCL directory)"
+        },
+        "sample_sheet": {
+            "type": "string",
+            "default": "",
+            "description": "Path to SampleSheet.csv for demultiplexing"
+        },
+        "bcl_converter": {
+            "type": "string",
+            "default": "bcl-convert",
+            "enum": ["bcl-convert", "bcl2fastq"],
+            "description": "BCL conversion tool"
+        },
+        "fastq_dir": {
+            "type": "string",
+            "default": "",
+            "description": "Directory containing input FASTQ files"
+        },
+        "fastq_pattern": {
+            "type": "string",
+            "default": "*{R1,R2}_*{fastq,fastq.gz,fq,fq.gz}",
+            "description": "Glob pattern for FASTQ file matching"
+        },
+        "library_file": {
+            "type": "string",
+            "description": "sgRNA library file (REQUIRED)"
+        },
+        "sample_labels": {
+            "type": "string",
+            "default": "",
+            "description": "Comma-separated sample labels"
+        },
+        "treatment_ids": {
+            "type": "string",
+            "default": "",
+            "description": "Comma-separated treatment sample labels for RRA"
+        },
+        "control_ids": {
+            "type": "string",
+            "default": "",
+            "description": "Comma-separated control sample labels for RRA"
+        },
+        "analyze_mode": {
+            "type": "string",
+            "default": "rra",
+            "enum": ["rra", "mle", "both"],
+            "description": "Analysis mode: RRA, MLE, or both"
+        },
+        "day0_label": {
+            "type": "string",
+            "default": "",
+            "description": "Day0/control label for auto comparison"
+        },
+        "norm_method": {
+            "type": "string",
+            "default": "median",
+            "enum": ["none", "median", "total", "control"],
+            "description": "Normalization method"
+        },
+        "control_sgrna": {
+            "type": "string",
+            "default": "",
+            "description": "File with control sgRNA IDs"
+        },
+        "control_gene": {
+            "type": "string",
+            "default": "",
+            "description": "File with control gene names"
+        },
+        "sgrna_len": {
+            "type": "integer",
+            "default": 20,
+            "description": "sgRNA length"
+        },
+        "trim5": {
+            "type": "string",
+            "default": "AUTO",
+            "description": "5' trim length or 'AUTO'"
+        },
+        "count_n": {
+            "type": "boolean",
+            "default": false,
+            "description": "Count sgRNAs containing N bases"
+        },
+        "reverse_complement": {
+            "type": "boolean",
+            "default": false,
+            "description": "Reverse complement library sequences"
+        },
+        "adjust_method": {
+            "type": "string",
+            "default": "fdr",
+            "enum": ["fdr", "holm", "pounds"],
+            "description": "Multiple testing correction method"
+        },
+        "gene_test_fdr_threshold": {
+            "type": "number",
+            "default": 0.25,
+            "description": "FDR threshold for gene test alpha"
+        },
+        "remove_zero": {
+            "type": "string",
+            "default": "both",
+            "enum": ["none", "control", "treatment", "both", "any"],
+            "description": "Remove zero-count sgRNAs strategy"
+        },
+        "gene_lfc_method": {
+            "type": "string",
+            "default": "median",
+            "enum": ["median", "mean", "alphamedian", "alphamean", "secondbest"],
+            "description": "Gene LFC calculation method"
+        },
+        "design_matrix": {
+            "type": "string",
+            "default": "",
+            "description": "Design matrix file (required for MLE)"
+        },
+        "include_samples": {
+            "type": "string",
+            "default": "",
+            "description": "Comma-separated sample labels for MLE"
+        },
+        "beta_labels": {
+            "type": "string",
+            "default": "",
+            "description": "Comma-separated beta labels for MLE"
+        },
+        "threads": {
+            "type": "integer",
+            "default": 1,
+            "description": "Number of threads for MLE"
+        },
+        "permutation_round": {
+            "type": "integer",
+            "default": 2,
+            "description": "Permutation rounds for MLE"
+        },
+        "html_report": {
+            "type": "boolean",
+            "default": true,
+            "description": "Generate interactive HTML report"
+        },
+        "skip_enrichment": {
+            "type": "boolean",
+            "default": false,
+            "description": "Skip pathway enrichment analysis"
+        },
+        "enrichment_top_n": {
+            "type": "integer",
+            "default": 50,
+            "description": "Number of top genes for enrichment"
+        },
+        "enrichment_fdr": {
+            "type": "number",
+            "default": 0.05,
+            "description": "FDR threshold for enrichment significance"
+        },
+        "organism": {
+            "type": "string",
+            "default": "human",
+            "enum": ["human", "mouse"],
+            "description": "Organism for hallmark gene sets"
+        },
+        "fdr_threshold": {
+            "type": "number",
+            "default": 0.05,
+            "description": "FDR threshold for volcano plot highlighting"
+        },
+        "top_n": {
+            "type": "integer",
+            "default": 20,
+            "description": "Top genes to label on plots"
+        },
+        "fastqc": {
+            "type": "boolean",
+            "default": true,
+            "description": "Run FastQC quality control"
+        },
+        "multiqc": {
+            "type": "boolean",
+            "default": true,
+            "description": "Run MultiQC report aggregation"
+        },
+        "output_dir": {
+            "type": "string",
+            "default": "./results",
+            "description": "Output directory"
+        }
+    },
+    "required": ["library_file"],
+    "anyOf": [
+        {
+            "properties": {
+                "demultiplex": { "const": true }
+            },
+            "required": ["run_folder", "sample_sheet"]
+        },
+        {
+            "properties": {
+                "demultiplex": { "const": false }
+            },
+            "required": ["fastq_dir"]
+        }
+    ]
+}
