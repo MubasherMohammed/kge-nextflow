@@ -4,86 +4,99 @@
 # Then run: nextflow run kge -profile conda -params-file my-params.yml
 #
 # Alternatively, pass parameters on the command line:
-#   nextflow run kge -profile conda --library_file lib.txt --fastq_dir ./fq ...
+#   nextflow run kge -profile conda --count_table counts.txt --comparisons comp.txt ...
+#
+# ============================================================================
+# INPUT — What you provide determines what runs:
+# ============================================================================
+#   --count_table       → always required (starting point)
+#   --comparisons       → triggers RRA (one run per treatment/control pair)
+#   --design_matrix     → triggers MLE
+#   --comparisons + --design_matrix → runs both RRA and MLE
+# ============================================================================
+
+# ============================================================================
+# INPUT — Pre-computed count table (skip demux + counting)
+# ============================================================================
+# Fastest mode: provide a count table to jump straight to RRA/MLE + report.
+count_table: ''                 # Path to .count.txt (e.g. all_samples.count.txt)
 
 # ============================================================================
 # INPUT — Demultiplexing (BCL → FASTQ)
 # ============================================================================
 # Set demultiplex=true to start from raw Illumina BCL files.
 # Requires --run_folder and --sample_sheet.
-demultiplex: false           # Enable BCL → FASTQ conversion
-run_folder: ''                # Path to Illumina run folder
-sample_sheet: ''              # Path to SampleSheet.csv
-bcl_converter: 'bcl-convert'  # 'bcl-convert' or 'bcl2fastq'
+demultiplex: false
+run_folder: ''
+sample_sheet: ''
+bcl_converter: 'bcl-convert'    # 'bcl-convert' or 'bcl2fastq'
 
 # ============================================================================
 # INPUT — FASTQ (skip demux)
 # ============================================================================
-# If demultiplex=false, provide FASTQ files directly.
-fastq_dir: ''                 # Directory containing FASTQ files
+fastq_dir: ''
 fastq_pattern: '*{R1,R2}_*{fastq,fastq.gz,fq,fq.gz}'
+library_file: ''                # Required for FASTQ mode
+sample_labels: ''
 
 # ============================================================================
-# LIBRARY & SAMPLE METADATA
+# RRA — Comparisons file
 # ============================================================================
-library_file: ''              # sgRNA library file (REQUIRED)
-sample_labels: ''             # Comma-sep sample labels, e.g. "Treat,Control"
-treatment_ids: ''              # Comma-sep treatment IDs for RRA, e.g. "Treat"
-control_ids: ''                # Comma-sep control IDs for RRA, e.g. "Control"
+# TSV file with header "treatment" and "control", one pair per row.
+# Triggers RRA analysis. Each row produces a separate MAGeCK test run.
+# Example:
+#   treatment	control
+#   ETP	Control_6d
+#   Mid_6d	Control_6d
+comparisons: ''
 
 # ============================================================================
-# ANALYSIS MODE
+# MLE — Design matrix
 # ============================================================================
-# 'rra'   — Robust Rank Aggregation (standard screen)
-# 'mle'   — Maximum Likelihood Estimation (multi-condition)
-# 'both'  — Run RRA + MLE sequentially
-analyze_mode: 'rra'
-day0_label: ''                 # Auto-compare all vs this control
+# Design matrix file (tab-separated). Triggers MLE analysis.
+# Column 1 = sample names (must match count table header).
+# Remaining columns = binary condition indicators.
+design_matrix: ''
+include_samples: ''
+beta_labels: ''
+threads: 1
+permutation_round: 2
 
 # ============================================================================
-# MAGeCK COUNT OPTIONS
+# MAGeCK COUNT OPTIONS (used in FASTQ/demux mode only)
 # ============================================================================
-norm_method: 'median'          # 'none', 'median', 'total', 'control'
-control_sgrna: ''              # File with control sgRNA IDs
-control_gene: ''               # File with control gene names
-sgrna_len: 20                  # sgRNA length (default 20)
-trim5: 'AUTO'                  # 5' trim length or 'AUTO'
-count_n: false                 # Count sgRNAs with N bases
-reverse_complement: false       # Reverse complement library sequences
+norm_method: 'median'           # 'none', 'median', 'total', 'control'
+control_sgrna: ''
+control_gene: ''
+sgrna_len: 20
+trim5: 'AUTO'
+count_n: false
+reverse_complement: false
 
 # ============================================================================
 # MAGeCK TEST (RRA) OPTIONS
 # ============================================================================
-adjust_method: 'fdr'           # 'fdr', 'holm', 'pounds'
+adjust_method: 'fdr'            # 'fdr', 'holm', 'pounds'
 gene_test_fdr_threshold: 0.25
-remove_zero: 'both'            # 'none','control','treatment','both','any'
-gene_lfc_method: 'median'      # 'median','mean','alphamedian','alphamean','secondbest'
-
-# ============================================================================
-# MAGeCK MLE OPTIONS
-# ============================================================================
-design_matrix: ''              # Design matrix file (REQUIRED for MLE)
-include_samples: ''             # Comma-sep sample labels for MLE
-beta_labels: ''                 # Comma-sep beta labels
-threads: 1                      # CPU threads for MLE
-permutation_round: 2            # Permutation rounds
+remove_zero: 'both'             # 'none','control','treatment','both','any'
+gene_lfc_method: 'median'       # 'median','mean','alphamedian','alphamean','secondbest'
 
 # ============================================================================
 # HTML REPORT OPTIONS
 # ============================================================================
-html_report: true               # Generate interactive HTML report
-skip_enrichment: false          # Skip pathway enrichment
-enrichment_top_n: 50            # Top genes for enrichment
-enrichment_fdr: 0.05            # FDR for enrichment significance
+html_report: true
+skip_enrichment: false
+enrichment_top_n: 50
+enrichment_fdr: 0.05
 organism: 'human'               # 'human' or 'mouse'
-fdr_threshold: 0.05             # FDR threshold for volcano plots
-top_n: 20                       # Top genes to label on plots
+fdr_threshold: 0.05
+top_n: 20
 
 # ============================================================================
 # QC OPTIONS
 # ============================================================================
-fastqc: true                   # Run FastQC
-multiqc: true                   # Run MultiQC aggregation
+fastqc: true
+multiqc: true
 
 # ============================================================================
 # OUTPUT

@@ -1,0 +1,8 @@
+treatment	control
+ETP	Control_6d
+ETP	Control_12d
+Mid_6d	Control_6d
+High_6d	Control_6d
+Low_12d	Control_12d
+Mid_12d	Control_12d
+High_12d	Control_12d

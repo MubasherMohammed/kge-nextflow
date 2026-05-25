@@ -1,34 +1,31 @@
 /*
  * ==========================================================================
- * KGE-nextflow — CRISPR KO Screen Analysis Pipeline
+ * kge — CRISPR KO Screen Analysis Pipeline
  * ==========================================================================
  *
- * Pipeline stages:
- *   1. DEMULTIPLEX — BCL → FASTQ (bcl-convert or bcl2fastq)
- *   2. FASTQC      — Pre-alignment quality control
- *   3. MAGECK_COUNT — sgRNA counting from FASTQ
- *   4. MAGECK_TEST  — RRA statistical test
- *   5. MAGECK_MLE   — MLE analysis (optional)
- *   6. KGE_REPORT   — Interactive HTML report generation
- *   7. MULTIQC      — Aggregate QC report
+ * Driven by the files you provide:
+ *   --count_table    → required, always the starting point
+ *   --comparisons    → triggers RRA (one run per treatment/control pair)
+ *   --design_matrix  → triggers MLE
+ *   --comparisons + --design_matrix → runs both RRA and MLE
  *
- * Usage:
- *   # Start from FASTQ (most common):
- *   nextflow run kge -profile conda \
- *     --library_file library.txt \
- *     --fastq_dir ./fastq \
- *     --sample_labels "Treat,Control" \
- *     --treatment_ids "Treat" \
- *     --control_ids "Control"
+ * Usage examples:
  *
- *   # Start from BCL (full pipeline):
+ *   # RRA only (7 comparisons):
  *   nextflow run kge -profile conda \
- *     --demultiplex \
- *     --run_folder /data/run_folder \
- *     --sample_sheet SampleSheet.csv \
- *     --library_file library.txt \
- *     --treatment_ids "Treat" \
- *     --control_ids "Control"
+ *     --count_table all_samples.count.txt \
+ *     --comparisons comparisons.txt
+ *
+ *   # Both RRA + MLE:
+ *   nextflow run kge -profile conda \
+ *     --count_table all_samples.count.txt \
+ *     --comparisons comparisons.txt \
+ *     --design_matrix design_matrix.txt
+ *
+ *   # MLE only:
+ *   nextflow run kge -profile conda \
+ *     --count_table all_samples.count.txt \
+ *     --design_matrix design_matrix.txt
  */
 
 nextflow.enable.dsl = 2
@@ -37,13 +34,13 @@ nextflow.enable.dsl = 2
 // INCLUDES
 // ============================================================================
 
-include { DEMULTIPLEX      } from './modules/demultiplex'
-include { FASTQC_READS      } from './modules/fastqc'
-include { MAGECK_COUNT      } from './modules/mageck_count'
-include { MAGECK_TEST_RRA   } from './modules/mageck_test'
+include { DEMULTIPLEX        } from './modules/demultiplex'
+include { FASTQC_READS       } from './modules/fastqc'
+include { MAGECK_COUNT        } from './modules/mageck_count'
+include { MAGECK_TEST_RRA     } from './modules/mageck_test'
 include { MAGECK_MLE_ANALYSIS } from './modules/mageck_mle'
-include { KGE_REPORT        } from './modules/kge_report'
-include { MULTIQC_REPORT    } from './modules/multiqc'
+include { KGE_REPORT          } from './modules/kge_report'
+include { MULTIQC_REPORT      } from './modules/multiqc'
 
 // ============================================================================
 // WORKFLOW
@@ -56,129 +53,122 @@ workflow {
     // ------------------------------------------------------------------
     validate_inputs()
 
-    // ------------------------------------------------------------------
-    // Stage 1: Demultiplex (optional — start from BCL)
-    // ------------------------------------------------------------------
-    demux_fastqs = Channel.empty()
-    if (params.demultiplex) {
-        demux_fastqs = DEMULTIPLEX(
+    // ==================================================================
+    // INPUT STAGE: resolve count table from one of three sources
+    // ==================================================================
+
+    if (params.count_table) {
+        // Mode A: start from existing count table — skip demux + count
+        count_table_ch    = Channel.fromPath(params.count_table, checkIfExists: true)
+        count_norm_ch     = Channel.empty()
+        count_summary_ch  = Channel.empty()
+    } else if (params.demultiplex) {
+        // Mode B: start from BCL — demux → fastqc → count
+        demux_result = DEMULTIPLEX(
             file(params.run_folder, checkIfExists: true),
             file(params.sample_sheet, checkIfExists: true)
         )
-        demux_fastqs = demux_fastqs.map { it[0] }
+
+        fastq_ch = demux_result.out.fastqs
             .flatMap { dir -> dir.listFiles().collect { it } }
             .filter { it.getName() =~ /.*\.(fastq\.gz|fastq|fq\.gz|fq)$/ }
-            .map { it }
-    }
 
-    // ------------------------------------------------------------------
-    // Stage 2: Collect FASTQ inputs
-    // ------------------------------------------------------------------
-    if (params.demultiplex) {
-        fastq_ch = demux_fastqs
-    } else if (params.fastq_dir) {
-        fastq_ch = Channel.fromPath("${params.fastq_dir}/${params.fastq_pattern}", checkIfExists: true)
-    } else {
-        fastq_ch = Channel.empty()
-    }
-
-    // Group FASTQs by sample name (extract from filename)
-    // Expected patterns: SampleName_R1_001.fastq.gz, SampleName_S1_L001_R1_001.fastq.gz
-    fastq_by_sample = fastq_ch
-        .map { f ->
-            def name = f.getName()
-                       .replaceAll(/_S\d+_L\d{3}_R[12]_001\.fastq\.gz$/, '')
-                       .replaceAll(/_S\d+_L\d{3}_R[12]_001\.fastq$/, '')
-                       .replaceAll(/_R[12](?:_\d+)?\.fastq\.gz$/, '')
-                       .replaceAll(/_R[12](?:_\d+)?\.fastq$/, '')
-            tuple(name, f)
+        if (params.fastqc) {
+            FASTQC_READS(fastq_ch.map { it })
         }
-        .groupTuple()
 
-    // ------------------------------------------------------------------
-    // Stage 3: FastQC (optional QC)
-    // ------------------------------------------------------------------
-    fastqc_results = Channel.empty()
-    if (params.fastqc) {
-        FASTQC_READS(fastq_ch)
-        fastqc_results = FASTQC_READS.out.zips.collect()
-    }
-
-    // ------------------------------------------------------------------
-    // Stage 4: MAGeCK count
-    // ------------------------------------------------------------------
-    MAGECK_COUNT(
-        file(params.library_file, checkIfExists: true),
-        Channel.fromPath('${params.fastq_dir}/${params.fastq_pattern}', checkIfExists: true)
-            .collect(),
-        params.sample_labels,
-        params
-    )
-
-    count_table = MAGECK_COUNT.out.count_table
-    count_normalized = MAGECK_COUNT.out.count_normalized
-    count_summary = MAGECK_COUNT.out.count_summary
-
-    // ------------------------------------------------------------------
-    // Stage 5: MAGeCK test (RRA)
-    // ------------------------------------------------------------------
-    if (params.analyze_mode == 'rra' || params.analyze_mode == 'both') {
-        MAGECK_TEST_RRA(
-            count_table,
-            params.treatment_ids,
-            params.control_ids,
+        MAGECK_COUNT(
+            file(params.library_file, checkIfExists: true),
+            fastq_ch.collect(),
+            params.sample_labels,
             params
         )
+        count_table_ch    = MAGECK_COUNT.out.count_table
+        count_norm_ch     = MAGECK_COUNT.out.count_normalized
+        count_summary_ch  = MAGECK_COUNT.out.count_summary
+
+    } else if (params.fastq_dir) {
+        // Mode C: start from FASTQ files
+        fastq_ch = Channel.fromPath(
+            "${params.fastq_dir}/${params.fastq_pattern}",
+            checkIfExists: true
+        )
+
+        if (params.fastqc) {
+            FASTQC_READS(fastq_ch.map { it })
+        }
+
+        MAGECK_COUNT(
+            file(params.library_file, checkIfExists: true),
+            Channel.fromPath("${params.fastq_dir}/${params.fastq_pattern}", checkIfExists: true)
+                .collect(),
+            params.sample_labels,
+            params
+        )
+        count_table_ch    = MAGECK_COUNT.out.count_table
+        count_norm_ch     = MAGECK_COUNT.out.count_normalized
+        count_summary_ch  = MAGECK_COUNT.out.count_summary
+
+    } else {
+        log.error "ERROR: provide one of --count_table, --fastq_dir, or --demultiplex"
+        System.exit(1)
     }
 
-    rra_gene_summary  = params.analyze_mode in ['rra', 'both']
-                        ? MAGECK_TEST_RRA.out.gene_summary
-                        : Channel.empty()
-    rra_sgrna_summary = params.analyze_mode in ['rra', 'both']
-                        ? MAGECK_TEST_RRA.out.sgrna_summary
-                        : Channel.empty()
+    // ==================================================================
+    // RRA: iterate over comparison pairs from --comparisons file
+    // ==================================================================
 
-    // ------------------------------------------------------------------
-    // Stage 6: MAGeCK MLE (optional)
-    // ------------------------------------------------------------------
-    mle_gene_summary  = Channel.empty()
-    mle_sgrna_summary = Channel.empty()
-    if (params.analyze_mode == 'mle' || params.analyze_mode == 'both') {
+    rra_gene_summaries  = Channel.empty().collect()
+    rra_sgrna_summaries = Channel.empty().collect()
+
+    if (params.comparisons) {
+        // Parse the comparisons TSV: one (treatment, control) pair per row
+        comparisons_ch = Channel.fromPath(params.comparisons, checkIfExists: true)
+            .splitCsv(header: true, sep: '\t')
+            .map { row -> tuple(row['treatment'].trim(), row['control'].trim()) }
+
+        // Combine: (count_table) × (treatment, control) → one MAGECK_TEST_RRA per pair
+        MAGECK_TEST_RRA(
+            count_table_ch.combine(comparisons_ch),
+            params
+        )
+
+        rra_gene_summaries  = MAGECK_TEST_RRA.out.gene_summary.collect()
+        rra_sgrna_summaries = MAGECK_TEST_RRA.out.sgrna_summary.collect()
+    }
+
+    // ==================================================================
+    // MLE: requires --design_matrix
+    // ==================================================================
+
+    mle_gene_summaries  = Channel.empty().collect()
+    mle_sgrna_summaries = Channel.empty().collect()
+    design_matrix_ch     = Channel.empty().collect()
+
+    if (params.design_matrix) {
         MAGECK_MLE_ANALYSIS(
-            count_table,
+            count_table_ch,
             file(params.design_matrix, checkIfExists: true),
             params
         )
-        mle_gene_summary  = MAGECK_MLE_ANALYSIS.out.gene_summary
-        mle_sgrna_summary = MAGECK_MLE_ANALYSIS.out.sgrna_summary
+        mle_gene_summaries  = MAGECK_MLE_ANALYSIS.out.gene_summary.collect()
+        mle_sgrna_summaries = MAGECK_MLE_ANALYSIS.out.sgrna_summary.collect()
+        design_matrix_ch     = Channel.fromPath(params.design_matrix).collect()
     }
 
-    // ------------------------------------------------------------------
-    // Stage 7: KGE Interactive HTML Report
-    // ------------------------------------------------------------------
+    // ==================================================================
+    // KGE Interactive HTML Report
+    // ==================================================================
+
     if (params.html_report) {
         KGE_REPORT(
-            count_table,
-            count_normalized,
-            count_summary,
-            rra_gene_summary.collect().map { it },
-            rra_sgrna_summary.collect().map { it },
-            mle_gene_summary.collect().map { it },
-            mle_sgrna_summary.collect().map { it },
-            Channel.fromPath(params.design_matrix).collect().map { it },
+            count_table_ch,
+            rra_gene_summaries,
+            rra_sgrna_summaries,
+            mle_gene_summaries,
+            mle_sgrna_summaries,
+            design_matrix_ch,
             params
-        )
-    }
-
-    // ------------------------------------------------------------------
-    // Stage 8: MultiQC (aggregate all QC)
-    // ------------------------------------------------------------------
-    if (params.multiqc) {
-        MULTIQC_REPORT(
-            Channel.empty()
-                .mix(fastqc_results ?: Channel.empty())
-                .mix(MAGECK_COUNT.out.log ?: Channel.empty())
-                .collect()
         )
     }
 }
@@ -189,59 +179,50 @@ workflow {
 // ============================================================================
 
 def validate_inputs() {
-    // Library file is always required
-    if (!params.library_file) {
-        log.error "ERROR: --library_file is required"
+    def inputModes = [params.count_table ? 1 : 0, params.fastq_dir ? 1 : 0, params.demultiplex ? 1 : 0].sum()
+    if (inputModes == 0) {
+        log.error "ERROR: provide one of --count_table, --fastq_dir, or --demultiplex"
         System.exit(1)
     }
-
-    // At least one input source
-    if (!params.demultiplex && !params.fastq_dir) {
-        log.error "ERROR: Provide either --demultiplex (with --run_folder and --sample_sheet) or --fastq_dir"
+    if (inputModes > 1) {
+        log.error "ERROR: provide only one input mode: --count_table, --fastq_dir, or --demultiplex"
         System.exit(1)
     }
 
     if (params.demultiplex) {
-        if (!params.run_folder) {
-            log.error "ERROR: --run_folder is required with --demultiplex"
-            System.exit(1)
-        }
-        if (!params.sample_sheet) {
-            log.error "ERROR: --sample_sheet is required with --demultiplex"
-            System.exit(1)
-        }
+        if (!params.run_folder)    { log.error "ERROR: --run_folder is required with --demultiplex"; System.exit(1) }
+        if (!params.sample_sheet)  { log.error "ERROR: --sample_sheet is required with --demultiplex"; System.exit(1) }
+        if (!params.library_file)  { log.error "ERROR: --library_file is required when starting from FASTQ"; System.exit(1) }
     }
 
-    // Analysis mode
-    if (!(params.analyze_mode in ['rra', 'mle', 'both'])) {
-        log.error "ERROR: --analyze_mode must be 'rra', 'mle', or 'both'"
+    if (params.fastq_dir && !params.library_file) {
+        log.error "ERROR: --library_file is required when starting from FASTQ"
         System.exit(1)
     }
 
-    // MLE requires design matrix
-    if (params.analyze_mode in ['mle', 'both']) {
-        if (!params.design_matrix) {
-            log.error "ERROR: --design_matrix is required for MLE analysis"
-            System.exit(1)
-        }
+    if (!params.comparisons && !params.design_matrix) {
+        log.error "ERROR: provide at least one of --comparisons (for RRA) or --design_matrix (for MLE)"
+        System.exit(1)
     }
 
-    // RRA requires treatment/control IDs
-    if (params.analyze_mode in ['rra', 'both']) {
-        if (!params.treatment_ids) {
-            log.error "ERROR: --treatment_ids is required for RRA analysis"
-            System.exit(1)
-        }
+    if (params.design_matrix && !params.comparisons) {
+        log.info "  [kge] MLE-only mode (--design_matrix provided, no --comparisons)"
     }
+    if (params.comparisons && !params.design_matrix) {
+        log.info "  [kge] RRA-only mode (--comparisons provided, no --design_matrix)"
+    }
+
+    def mode = params.count_table ? 'count_table' : (params.demultiplex ? 'BCL' : 'FASTQ')
+    def analysis = params.comparisons && params.design_matrix ? 'RRA+MLE' : (params.comparisons ? 'RRA' : 'MLE')
 
     log.info """
     ============================================
-      KGE-nextflow: CRISPR KO Screen Pipeline
+      kge: CRISPR KO Screen Pipeline
     ============================================
-      Demultiplex   : ${params.demultiplex}
-      FASTQ source   : ${params.demultiplex ? 'BCL conversion' : params.fastq_dir}
-      Library file   : ${params.library_file}
-      Analysis mode  : ${params.analyze_mode}
+      Input mode     : ${mode}
+      Analysis       : ${analysis}
+      Comparisons    : ${params.comparisons ?: 'N/A (MLE only)'}
+      Design matrix  : ${params.design_matrix ?: 'N/A (RRA only)'}
       HTML report    : ${params.html_report}
       Output dir     : ${params.output_dir}
     ============================================

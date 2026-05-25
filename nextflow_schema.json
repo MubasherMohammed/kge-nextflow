@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "KGE-nextflow Pipeline Parameters",
+    "title": "kge Pipeline Parameters",
     "description": "Parameter schema for the KGE CRISPR KO screen analysis Nextflow pipeline",
     "type": "object",
     "properties": {
@@ -35,35 +35,30 @@
             "default": "*{R1,R2}_*{fastq,fastq.gz,fq,fq.gz}",
             "description": "Glob pattern for FASTQ file matching"
         },
+        "count_table": {
+            "type": "string",
+            "default": "",
+            "description": "Pre-computed count table file (skips demux + count stages)"
+        },
         "library_file": {
             "type": "string",
-            "description": "sgRNA library file (REQUIRED)"
+            "default": "",
+            "description": "sgRNA library file (required for FASTQ mode)"
         },
         "sample_labels": {
             "type": "string",
             "default": "",
             "description": "Comma-separated sample labels"
         },
-        "treatment_ids": {
+        "comparisons": {
             "type": "string",
             "default": "",
-            "description": "Comma-separated treatment sample labels for RRA"
+            "description": "TSV file with treatment/control pairs (one per row, header: treatment<TAB>control). Triggers RRA analysis."
         },
-        "control_ids": {
+        "design_matrix": {
             "type": "string",
             "default": "",
-            "description": "Comma-separated control sample labels for RRA"
-        },
-        "analyze_mode": {
-            "type": "string",
-            "default": "rra",
-            "enum": ["rra", "mle", "both"],
-            "description": "Analysis mode: RRA, MLE, or both"
-        },
-        "day0_label": {
-            "type": "string",
-            "default": "",
-            "description": "Day0/control label for auto comparison"
+            "description": "Design matrix file (required for MLE). Triggers MLE analysis."
         },
         "norm_method": {
             "type": "string",
@@ -123,11 +118,6 @@
             "default": "median",
             "enum": ["median", "mean", "alphamedian", "alphamean", "secondbest"],
             "description": "Gene LFC calculation method"
-        },
-        "design_matrix": {
-            "type": "string",
-            "default": "",
-            "description": "Design matrix file (required for MLE)"
         },
         "include_samples": {
             "type": "string",
@@ -200,20 +190,5 @@
             "default": "./results",
             "description": "Output directory"
         }
-    },
-    "required": ["library_file"],
-    "anyOf": [
-        {
-            "properties": {
-                "demultiplex": { "const": true }
-            },
-            "required": ["run_folder", "sample_sheet"]
-        },
-        {
-            "properties": {
-                "demultiplex": { "const": false }
-            },
-            "required": ["fastq_dir"]
-        }
-    ]
+    }
 }
