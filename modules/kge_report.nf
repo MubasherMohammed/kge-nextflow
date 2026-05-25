@@ -10,6 +10,7 @@
  */
 
 process KGE_REPORT {
+    publishDir "${params.output_dir}/kge_report", mode: 'copy'
     tag "${prefix}"
     label 'kge_report'
 

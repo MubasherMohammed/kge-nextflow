@@ -8,6 +8,7 @@
  */
 
 process MAGECK_TEST_RRA {
+    publishDir "${params.output_dir}/mageck_test", mode: 'copy'
     tag "${treatment}_vs_${control}"
     label 'mageck_test'
 

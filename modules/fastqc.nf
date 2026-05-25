@@ -5,6 +5,7 @@
  */
 
 process FASTQC_READS {
+    publishDir "${params.output_dir}/fastqc", mode: 'copy'
     tag "${fastq.baseName}"
     label 'fastqc'
 

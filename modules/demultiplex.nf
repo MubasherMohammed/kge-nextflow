@@ -6,6 +6,7 @@
  */
 
 process DEMULTIPLEX {
+    publishDir "${params.output_dir}/demultiplex", mode: 'copy'
     tag "${run_folder.baseName}"
     label 'demultiplex'
 

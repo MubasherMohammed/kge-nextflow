@@ -7,6 +7,7 @@
  */
 
 process MAGECK_COUNT {
+    publishDir "${params.output_dir}/mageck_count", mode: 'copy'
     tag "${prefix}"
     label 'mageck_count'
 

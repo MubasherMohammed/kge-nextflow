@@ -6,6 +6,7 @@
  */
 
 process MAGECK_MLE_ANALYSIS {
+    publishDir "${params.output_dir}/mageck_mle", mode: 'copy'
     tag "${prefix}"
     label 'mageck_mle'
 

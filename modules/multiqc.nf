@@ -6,6 +6,7 @@
  */
 
 process MULTIQC_REPORT {
+    publishDir "${params.output_dir}/multiqc", mode: 'copy'
     tag "multiqc"
     label 'multiqc'
 
