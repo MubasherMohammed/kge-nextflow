@@ -27,12 +27,16 @@ if ! command -v ml &> /dev/null && ! command -v module &> /dev/null; then
     exit 1
 fi
 
-# Load PDC and miniconda3 modules
+# Load required Dardel modules
 # Adjust versions if needed for your Dardel allocation
 ml PDC/23.12
+ml bioinfo-tools
+ml java/OracleJDK_11.0.9
 ml miniconda3/25.3.1-1-cpeGNU-24.11
+ml nextflow/24.04.2
+ml singularity/4.1.1-cpeGNU-23.12
 
-echo "  Loaded PDC and miniconda3 modules"
+echo "  Loaded PDC, bioinfo-tools, Java 11, miniconda3, Nextflow 24.04, Singularity 4.1.1"
 
 # Verify conda is available after module load
 if ! command -v conda &> /dev/null; then
@@ -126,10 +130,15 @@ echo "============================================"
 echo "  Installation complete!"
 echo "============================================"
 echo ""
-echo "  To use on Dardel, first load modules then activate:"
+echo "  To use on Dardel, load modules then activate:"
+echo "  (The pipeline requires Nextflow >= 24.04 — Nextflow/22.10.1 is NOT compatible)"
 echo ""
 echo "    ml PDC/23.12"
+echo "    ml bioinfo-tools"
+echo "    ml java/OracleJDK_11.0.9"
 echo "    ml miniconda3/25.3.1-1-cpeGNU-24.11"
+echo "    ml nextflow/24.04.2"
+echo "    ml singularity/4.1.1-cpeGNU-23.12"
 echo "    source activate ${ENV_NAME}"
 echo ""
 echo "  Usage:"
