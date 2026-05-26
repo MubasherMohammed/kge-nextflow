@@ -1,0 +1,40 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Nextflow
+.nextflow*
+work/
+results/
+timeline.html
+trace.txt
+report.html
+dag.dot
+dag.svg
+.nextflow.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+.DS_Store
+
+# Other
+*.md
+LICENSE

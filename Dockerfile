@@ -16,6 +16,7 @@ LABEL org.opencontainers.image.authors="Mubasher Mohammed"
 LABEL org.opencontainers.image.source="https://github.com/MubasherMohammed/kge-nextflow"
 
 ENV CONDA_ENV=mageckenv
+ENV CONDA_DIR=/opt/conda
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
@@ -59,4 +60,10 @@ RUN mageck --version && \
 # Default working directory for pipeline runs
 WORKDIR /data
 
-ENTRYPOINT ["mageck"]
+# NOTE: No ENTRYPOINT set intentionally.
+# Nextflow runs process scripts via `bash -c` inside containers, so an ENTRYPOINT
+# like `mageck` would prepend itself to every command (e.g. `mageck bash -c "fastqc ..."`)
+# and break non-mageck processes. The PATH already points to the conda env with mageck.
+
+# Default command — shows help when container is run interactively
+CMD ["mageck", "--help"]

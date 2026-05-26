@@ -177,7 +177,13 @@ workflow {
             gene_summaries_collected,
             sgrna_summaries_collected,
             design_matrix_ch,
-            params
+            params.skip_enrichment,
+            params.enrichment_top_n,
+            params.enrichment_fdr,
+            params.organism,
+            params.fdr_threshold,
+            params.top_n,
+            params.output_prefix
         )
     }
 }

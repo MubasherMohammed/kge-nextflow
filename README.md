@@ -12,39 +12,81 @@ The pipeline auto-detects what to run based on the files you provide:
 
 ## Quick Start
 
-### Install
+There are two ways to get started: **Docker** (recommended — no conda setup needed) or **conda** (for local development without Docker).
+
+### Option A: Docker (Recommended)
+
+**Prerequisites:** [Docker Desktop](https://docs.docker.com/get-docker/) and [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html).
 
 ```bash
-curl -fsSL https://get.nextflow.io | bash
+# Pull the pre-built image
+docker pull mubasher/mageck-kge:0.5.9.5
+
+# Clone the pipeline
 git clone https://github.com/MubasherMohammed/kge-nextflow.git
 cd kge-nextflow
-bash install.sh
+
+# Run with Docker profile
+nextflow run main.nf -profile docker \
+  --count_table all_samples.count.txt \
+  --comparisons comparisons.txt
+```
+
+> The Docker image includes MAGeCK 0.5.9.5 with KGE interactive Plotly HTML reports, pathway enrichment, and FLUTE-style gene classification pre-installed.
+
+#### Building the Docker Image from Source
+
+To build the Docker image locally instead of pulling from Docker Hub:
+
+```bash
+docker build -t mubasher/mageck-kge:0.5.9.5 .
+```
+
+This builds from `Dockerfile` at the project root using the conda environment defined in `environment.yml`, then overlays the KGE `.py` modifications from the `mageck/` directory.
+
+### Option B: Conda (Local Development)
+
+**Prerequisites:** [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) and [Nextflow](https://www.nextflow.io/docs/latest/getstarted.html).
+
+```bash
+git clone https://github.com/MubasherMohammed/kge-nextflow.git
+cd kge-nextflow
+bash install.sh          # Creates 'mageckenv' conda environment
 conda activate mageckenv
 ```
+
+> The `install.sh` script handles all platform detection (including Apple Silicon Rosetta 2 emulation) and overlays the KGE modifications onto the installed MAGeCK package.
 
 ### Run
 
 **RRA + MLE (most common):**
 
 ```bash
-nextflow run kge -profile conda \
+# With Docker
+nextflow run main.nf -profile docker \
+  --count_table all_samples.count.txt \
+  --comparisons comparisons.txt \
+  --design_matrix design_matrix.txt
+
+# With conda
+nextflow run main.nf -profile conda \
   --count_table all_samples.count.txt \
   --comparisons comparisons.txt \
   --design_matrix design_matrix.txt
 ```
 
-**RRA only:**
+**RRA only (fast — 7 comparisons processed in ~10 min):**
 
 ```bash
-nextflow run kge -profile conda \
+nextflow run main.nf -profile docker \
   --count_table all_samples.count.txt \
   --comparisons comparisons.txt
 ```
 
-**MLE only:**
+**MLE only (computationally heavy — 19K genes × 8 conditions takes 60–90 min):**
 
 ```bash
-nextflow run kge -profile conda \
+nextflow run main.nf -profile docker \
   --count_table all_samples.count.txt \
   --design_matrix design_matrix.txt
 ```
@@ -52,7 +94,7 @@ nextflow run kge -profile conda \
 **From FASTQ (with counting):**
 
 ```bash
-nextflow run kge -profile conda \
+nextflow run main.nf -profile docker \
   --library_file library.txt \
   --fastq_dir ./fastq \
   --comparisons comparisons.txt
@@ -61,7 +103,7 @@ nextflow run kge -profile conda \
 **From BCL (full pipeline):**
 
 ```bash
-nextflow run kge -profile conda \
+nextflow run main.nf -profile docker \
   --demultiplex \
   --run_folder /data/illumina_run \
   --sample_sheet SampleSheet.csv \
@@ -73,7 +115,7 @@ nextflow run kge -profile conda \
 
 ```bash
 cp assets/params_template.yml my-params.yml
-nextflow run kge -profile conda -params-file my-params.yml
+nextflow run main.nf -profile docker -params-file my-params.yml
 ```
 
 ## Comparisons File
@@ -115,18 +157,90 @@ See `assets/design_matrix_template.txt` for more examples.
 
 | Profile | Executor | Container | Use Case |
 |---------|----------|-----------|----------|
-| `conda` | local | conda | Local workstation |
-| `docker` | local | Docker | Local with Docker |
-| `singularity` | local | Singularity | HPC cluster |
+| `conda` | local | conda environment | Local workstation |
+| `docker` | local | Docker container | Local with Docker (recommended) |
+| `singularity` | local | Singularity SIF | HPC cluster |
 | `slurm` | SLURM | — | SLURM cluster (combine with conda/singularity) |
-| `dardel` | local | conda | PDC/KTH Dardel |
+| `dardel` | local | conda | PDC/KTH Dardel HPC |
 
 ```bash
-nextflow run kge -profile conda ...
-nextflow run kge -profile docker ...
-nextflow run kge -profile singularity,slurm ...
-nextflow run kge -profile dardel ...
+# Conda (local development)
+nextflow run main.nf -profile conda ...
+
+# Docker (recommended for reproducibility)
+nextflow run main.nf -profile docker ...
+
+# Singularity on HPC (SLURM batch)
+nextflow run main.nf -profile singularity,slurm ...
+
+# Dardel (PDC/KTH)
+nextflow run main.nf -profile dardel ...
 ```
+
+### Docker
+
+The `docker` profile uses `mubasher/mageck-kge:0.5.9.5` from Docker Hub. This image contains:
+- MAGeCK 0.5.9.5 with KGE interactive HTML report extensions
+- Conda environment with all dependencies (Python, R, Plotly, decoupler)
+- KGE custom `.py` overlays from the `mageck/` directory
+
+**Pull pre-built:**
+```bash
+docker pull mubasher/mageck-kge:0.5.9.5
+```
+
+**Build locally:**
+```bash
+docker build -t mubasher/mageck-kge:0.5.9.5 .
+```
+
+The Dockerfile:
+1. Starts from `continuumio/miniconda3:23.10`
+2. Creates the conda environment from `environment.yml`
+3. Overlays KGE modifications from `mageck/*.py` onto the installed MAGeCK package
+4. Sets `CMD ["mageck", "--help"]` (no `ENTRYPOINT` — Nextflow's `docker run` uses `bash -c`, so an ENTRYPOINT would wrap all commands and break execution)
+
+### Singularity
+
+The `singularity` profile uses the `Singularity` definition file at the project root. This file boots from the same Docker image (`mubasher/mageck-kge:0.5.9.5`) so the software stack is identical.
+
+**Build a SIF file (requires Singularity installed on Linux):**
+
+```bash
+singularity build mageck-kge.sif Singularity
+```
+
+**Or pull directly from Docker Hub (no definition file needed):**
+
+```bash
+singularity pull docker://mubasher/mageck-kge:0.5.9.5
+```
+
+**Run with Nextflow:**
+
+```bash
+nextflow run main.nf -profile singularity \
+  --count_table all_samples.count.txt \
+  --comparisons comparisons.txt
+```
+
+> **Note:** The Singularity definition has **no `%runscript`**. Nextflow uses `singularity exec` (not `singularity run`), which bypasses the runscript. A runscript would interfere with process execution in the same way as a Docker `ENTRYPOINT`.
+
+### Dardel (PDC/KTH HPC)
+
+For the Dardel HPC cluster at PDC/KTH:
+
+```bash
+# Install (one-time setup)
+bash install_dardel.sh
+
+# Run
+nextflow run main.nf -profile dardel \
+  --count_table all_samples.count.txt \
+  --comparisons comparisons.txt
+```
+
+The Dardel profile uses `slurm` as the executor and loads PDC/miniconda3 modules before running processes.
 
 ## Pipeline Stages
 
@@ -151,9 +265,8 @@ results/
 ├── mageck_mle/           # MLE results (if --design_matrix provided)
 │   ├── *.gene_summary.txt
 │   └── *.sgrna_summary.txt
-├── kge_report/           # Interactive HTML report
-│   ├── mageck.report.html
-│   └── mageck_report_data/
+├── kge_report/           # Interactive Plotly HTML report (27 MB for 7 comparisons)
+│   └── mageck.report.html
 └── multiqc/              # Aggregated QC report (if FASTQ input)
     └── multiqc_report.html
 ```

@@ -5,104 +5,78 @@
  * Plotly charts, dynamic gene tables, pathway enrichment, and
  * FLUTE-style gene classification.
  *
- * Inputs:
- *   - count_table:       the read count table
- *   - gene_summaries:    one or more *.gene_summary.txt files (from RRA and/or MLE)
- *   - sgrna_summaries:   one or more *.sgrna_summary.txt files (from RRA and/or MLE)
- *   - design_matrix:     design matrix file (or NO_DESIGN_MATRIX marker if not provided)
- *   - params_obj:        pipeline parameters
- *
- * The script detects NO_DESIGN_MATRIX and skips MLE-specific args.
- * All input files are staged by Nextflow in the work directory, so
- * no subdirectory or cd is needed.
+ * All bash-argument decisions are pre-computed in Groovy to avoid
+ * Nextflow GString template issues with dollar signs in bash strings.
  */
 
 process KGE_REPORT {
     publishDir "${params.output_dir}/kge_report", mode: 'copy'
-    tag "${prefix}"
+    tag "${report_prefix}"
     label 'kge_report'
 
     input:
-        path count_table
+        path count_table_file
         path gene_summaries
         path sgrna_summaries
-        path design_matrix
-        val params_obj
+        path design_matrix_file
+        val skip_enrichment
+        val enrichment_top_n
+        val enrichment_fdr
+        val organism
+        val fdr_threshold
+        val top_n_value
+        val output_prefix
 
     output:
-        path "${prefix}.report.html", emit: html_report
-        path "${prefix}_report_data/", emit: report_data
+        path "${report_prefix}.report.html", emit: html_report
 
     script:
-    prefix = params_obj.output_prefix ?: 'mageck'
-    /*
-     * Mageck report sub-command gathers gene/sgrna summaries and the
-     * count table already staged in the work directory.  No cd, no
-     * subdirectory — files are referenced by name directly.
-     */
+    report_prefix = output_prefix ?: 'mageck'
+
+    // Pre-compute argument values
+    dm_arg = (design_matrix_file.name == 'NO_DESIGN_MATRIX') ? '' : "--design-matrix ${design_matrix_file}"
+    enrich_arg = skip_enrichment ? '--skip-enrichment' : "--enrichment-top-n ${enrichment_top_n} --enrichment-fdr ${enrichment_fdr}"
+    org_arg = (organism != 'human') ? "--organism ${organism}" : ''
+
     """
     #! /usr/bin/env bash
-    echo "[KGE_REPORT] Generating interactive HTML report..."
+    set -euo pipefail
 
-    # ---- Build optional arguments ----
+    echo "[KGE_REPORT] Generating interactive HTML report..."
 
     OPT_ARGS=""
 
-    # Gene summaries — glob for any *.gene_summary.txt in work dir
-    GENE_SUMMARY_ARGS=""
+    # Gene summaries — glob staged files
+    GENE_ARGS=""
     for f in *.gene_summary.txt; do
-        [ -f "\${f}" ] && GENE_SUMMARY_ARGS="\${GENE_SUMMARY_ARGS} \${f}"
+        [ -f "\${f}" ] && GENE_ARGS="\${GENE_ARGS} \${f}"
     done
-    if [ -n "\${GENE_SUMMARY_ARGS}" ]; then
-        OPT_ARGS="\${OPT_ARGS} --gene-summary \${GENE_SUMMARY_ARGS}"
-    fi
+    [ -n "\${GENE_ARGS}" ] && OPT_ARGS="\${OPT_ARGS} --gene-summary \${GENE_ARGS}"
 
-    # sgRNA summaries — glob for any *.sgrna_summary.txt in work dir
-    SGRNA_SUMMARY_ARGS=""
+    # sgRNA summaries — glob staged files
+    SGRNA_ARGS=""
     for f in *.sgrna_summary.txt; do
-        [ -f "\${f}" ] && SGRNA_SUMMARY_ARGS="\${SGRNA_SUMMARY_ARGS} \${f}"
+        [ -f "\${f}" ] && SGRNA_ARGS="\${SGRNA_ARGS} \${f}"
     done
-    if [ -n "\${SGRNA_SUMMARY_ARGS}" ]; then
-        OPT_ARGS="\${OPT_ARGS} --sgrna-summary \${SGRNA_SUMMARY_ARGS}"
-    fi
+    [ -n "\${SGRNA_ARGS}" ] && OPT_ARGS="\${OPT_ARGS} --sgrna-summary \${SGRNA_ARGS}"
 
-    # Design matrix — skip if marker file (RRA-only mode)
-    if [ "$(basename ${design_matrix})" != "NO_DESIGN_MATRIX" ]; then
-        OPT_ARGS="\${OPT_ARGS} --design-matrix ${design_matrix}"
-    fi
+    # Pre-computed arguments
+    OPT_ARGS="\${OPT_ARGS} ${dm_arg}"
+    OPT_ARGS="\${OPT_ARGS} ${enrich_arg}"
+    OPT_ARGS="\${OPT_ARGS} ${org_arg}"
 
-    # Enrichment options
-    if [ "${params_obj.skip_enrichment}" = "true" ] || [ "${params_obj.skip_enrichment}" = true ]; then
-        OPT_ARGS="\${OPT_ARGS} --skip-enrichment"
-    else
-        OPT_ARGS="\${OPT_ARGS} --enrichment-top-n ${params_obj.enrichment_top_n}"
-        OPT_ARGS="\${OPT_ARGS} --enrichment-fdr ${params_obj.enrichment_fdr}"
-    fi
+    # FDR threshold and top-n for plots
+    OPT_ARGS="\${OPT_ARGS} --fdr-threshold ${fdr_threshold}"
+    OPT_ARGS="\${OPT_ARGS} --top-n ${top_n_value}"
 
-    # Organism
-    if [ "${params_obj.organism}" != "human" ]; then
-        OPT_ARGS="\${OPT_ARGS} --organism ${params_obj.organism}"
-    fi
-
-    # FDR threshold and top-n
-    OPT_ARGS="\${OPT_ARGS} --fdr-threshold ${params_obj.fdr_threshold}"
-    OPT_ARGS="\${OPT_ARGS} --top-n ${params_obj.top_n}"
-
-    echo "[KGE_REPORT] Running: mageck report -n ${prefix} -k ${count_table} \${OPT_ARGS}"
+    echo "[KGE_REPORT] Running: mageck report -n ${report_prefix} -k ${count_table_file}"
 
     mageck report \\
-        -n "${prefix}" \\
-        -k "${count_table}" \\
+        -n "${report_prefix}" \\
+        -k "${count_table_file}" \\
         \${OPT_ARGS}
 
-    # Collect report data
-    mkdir -p "${prefix}_report_data"
-    cp *.gene_summary.txt "${prefix}_report_data/" 2>/dev/null || true
-    cp *.sgrna_summary.txt "${prefix}_report_data/" 2>/dev/null || true
-    cp *.log "${prefix}_report_data/" 2>/dev/null || true
-    cp *.count.txt "${prefix}_report_data/" 2>/dev/null || true
-
     echo "[KGE_REPORT] Done."
-    ls -la ${prefix}.report.html 2>/dev/null || echo "Warning: HTML report not found"
+    ls -la ${report_prefix}.report.html
     """
 }
