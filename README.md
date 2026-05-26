@@ -574,6 +574,15 @@ Notes for Dardel:
 - Dardel uses Klemming storage; store reference data under `/cfs/klemming/projects/<project>/`
 - The pipeline requires Nextflow >= 24.04 (DSL2). An older module `Nextflow/22.10.1` is also available on Dardel but is **not compatible** — always use `nextflow/24.04.2`
 
+**Ready-to-use batch script:** A template SLURM submission script is included in the repository:
+
+```bash
+# Edit paths and project ID, then submit:
+sbatch run_kge_dardel_singularity.sh
+```
+
+This script runs the pipeline directly from GitHub (`MubasherMohammed/kge-nextflow`) with `-profile singularity,slurm`, loads all required modules, pulls the SIF image, and summarises results. See `run_kge_dardel_singularity.sh` in the project root.
+
 ### Dardel: Using Singularity
 
 Singularity lets you run the pipeline with zero conda setup — the SIF image contains everything. You still need Nextflow and Java for the pipeline orchestration, but all MAGeCK/KGE dependencies are in the container.
