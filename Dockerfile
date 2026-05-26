@@ -2,9 +2,9 @@
 # Dockerfile for MAGeCK-KGE: CRISPR screen analysis with interactive HTML reports
 # ============================================================================
 # Build:
-#   docker build -t mubasher/mageck-kge:0.5.9.5 .
+#   docker build -t mobasherbarsi/mageck-kge:0.5.9.5 .
 # Push:
-#   docker push mubasher/mageck-kge:0.5.9.5
+#   docker push mobasherbarsi/mageck-kge:0.5.9.5
 # ============================================================================
 
 FROM continuumio/miniconda3:25.3.1-1 AS base

@@ -20,7 +20,7 @@ There are two ways to get started: **Docker** (recommended — no conda setup ne
 
 ```bash
 # Pull the pre-built image
-docker pull mubasher/mageck-kge:0.5.9.5
+docker pull mobasherbarsi/mageck-kge:0.5.9.5
 
 # Clone the pipeline
 git clone https://github.com/MubasherMohammed/kge-nextflow.git
@@ -39,7 +39,7 @@ nextflow run main.nf -profile docker \
 To build the Docker image locally instead of pulling from Docker Hub:
 
 ```bash
-docker build -t mubasher/mageck-kge:0.5.9.5 .
+docker build -t mobasherbarsi/mageck-kge:0.5.9.5 .
 ```
 
 This builds from `Dockerfile` at the project root using the conda environment defined in `environment.yml`, then overlays the KGE `.py` modifications from the `mageck/` directory.
@@ -179,19 +179,19 @@ nextflow run main.nf -profile dardel ...
 
 ### Docker
 
-The `docker` profile uses `mubasher/mageck-kge:0.5.9.5` from Docker Hub. This image contains:
+The `docker` profile uses `mobasherbarsi/mageck-kge:0.5.9.5` from Docker Hub. This image contains:
 - MAGeCK 0.5.9.5 with KGE interactive HTML report extensions
 - Conda environment with all dependencies (Python, R, Plotly, decoupler)
 - KGE custom `.py` overlays from the `mageck/` directory
 
 **Pull pre-built:**
 ```bash
-docker pull mubasher/mageck-kge:0.5.9.5
+docker pull mobasherbarsi/mageck-kge:0.5.9.5
 ```
 
 **Build locally:**
 ```bash
-docker build -t mubasher/mageck-kge:0.5.9.5 .
+docker build -t mobasherbarsi/mageck-kge:0.5.9.5 .
 ```
 
 The Dockerfile:
@@ -202,7 +202,7 @@ The Dockerfile:
 
 ### Singularity
 
-The `singularity` profile uses the `Singularity` definition file at the project root. This file boots from the same Docker image (`mubasher/mageck-kge:0.5.9.5`) so the software stack is identical.
+The `singularity` profile uses the `Singularity` definition file at the project root. This file boots from the same Docker image (`mobasherbarsi/mageck-kge:0.5.9.5`) so the software stack is identical.
 
 **Build a SIF file (requires Singularity installed on Linux):**
 
@@ -213,7 +213,7 @@ singularity build mageck-kge.sif Singularity
 **Or pull directly from Docker Hub (no definition file needed):**
 
 ```bash
-singularity pull docker://mubasher/mageck-kge:0.5.9.5
+singularity pull docker://mobasherbarsi/mageck-kge:0.5.9.5
 ```
 
 **Run with Nextflow:**
