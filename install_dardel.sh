@@ -31,7 +31,7 @@ fi
 # Adjust versions if needed for your Dardel allocation
 ml PDC/23.12
 ml bioinfo-tools
-ml java/OracleJDK_11.0.9
+ml java/11
 ml miniconda3/25.3.1-1-cpeGNU-24.11
 ml nextflow/24.04.2
 ml singularity/4.1.1-cpeGNU-23.12
@@ -135,7 +135,7 @@ echo "  (The pipeline requires Nextflow >= 24.04 — Nextflow/22.10.1 is NOT com
 echo ""
 echo "    ml PDC/23.12"
 echo "    ml bioinfo-tools"
-echo "    ml java/OracleJDK_11.0.9"
+echo "    ml java/11"
 echo "    ml miniconda3/25.3.1-1-cpeGNU-24.11"
 echo "    ml nextflow/24.04.2"
 echo "    ml singularity/4.1.1-cpeGNU-23.12"

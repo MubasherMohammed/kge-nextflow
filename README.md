@@ -508,7 +508,7 @@ salloc -A <your-project> --nodes=1 --time=01:00:00
 # On the compute node — load all required modules
 ml PDC/23.12
 ml bioinfo-tools
-ml java/OracleJDK_11.0.9
+ml java/11
 ml miniconda3/25.3.1-1-cpeGNU-24.11
 ml nextflow/24.04.2
 ml singularity/4.1.1-cpeGNU-23.12
@@ -543,7 +543,7 @@ For production runs, create a SLURM submission script:
 # Load Dardel modules — order matters (PDC first, then specific tools)
 ml PDC/23.12
 ml bioinfo-tools
-ml java/OracleJDK_11.0.9
+ml java/11
 ml miniconda3/25.3.1-1-cpeGNU-24.11
 ml nextflow/24.04.2
 ml singularity/4.1.1-cpeGNU-23.12
@@ -570,9 +570,18 @@ sbatch run_kge_dardel.sh
 Notes for Dardel:
 - Use `-work-dir` to specify a scratch location with fast I/O (e.g., `/cfs/klemming/scratch/$USER/work`)
 - The `dardel` profile uses the `local` executor because Dardel is a single-node system for most jobs. For multi-node needs, combine profiles: `-profile dardel,slurm`
-- Module versions may change over time. Verify with `module spider <name>` and update the submission script accordingly
+- Module versions may change over time. Verify available versions with `module spider <name>` and update accordingly:
+  ```bash
+  module spider PDC
+  module spider miniconda3
+  module spider nextflow
+  module spider singularity
+  module spider java
+  ```
 - Dardel uses Klemming storage; store reference data under `/cfs/klemming/projects/<project>/`
 - The pipeline requires Nextflow >= 24.04 (DSL2). An older module `Nextflow/22.10.1` is also available on Dardel but is **not compatible** — always use `nextflow/24.04.2`
+- The `bioinfo-tools` module may show a legacy UPPMAX note — this is harmless and does not affect pipeline execution
+- If `module load java/11` fails, run `module spider java` to find the exact Java module name on your Dardel allocation and adjust accordingly
 
 **Ready-to-use batch script:** A template SLURM submission script is included in the repository:
 
@@ -603,7 +612,7 @@ salloc -A <your-project> --nodes=1 --time=01:00:00
 # On the compute node:
 ml PDC/23.12
 ml bioinfo-tools
-ml java/OracleJDK_11.0.9
+ml java/11
 ml miniconda3/25.3.1-1-cpeGNU-24.11
 ml nextflow/24.04.2
 ml singularity/4.1.1-cpeGNU-23.12
@@ -633,7 +642,7 @@ nextflow run main.nf -profile singularity,slurm \
 # are needed; the SIF image has MAGeCK/KGE built in
 ml PDC/23.12
 ml bioinfo-tools
-ml java/OracleJDK_11.0.9
+ml java/11
 ml miniconda3/25.3.1-1-cpeGNU-24.11
 ml nextflow/24.04.2
 ml singularity/4.1.1-cpeGNU-23.12

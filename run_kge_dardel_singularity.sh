@@ -12,23 +12,23 @@
 #   7 comparisons × RRA → KGE interactive HTML report
 # =============================================================================
 
-#SBATCH -A <your-project>
-#SBATCH -J kge_test_singularity
-#SBATCH --nodes=1
-#SBATCH --time=04:00:00
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --output=kge_%j.out
-#SBATCH --error=kge_%j.err
+#SBATCH -A naiss2026-4-13
+#SBATCH -J Rong_mageck
+#SBATCH -p shared
+#SBATCH -t 1:00:00
+#SBATCH -c 8
+#SBATCH --mem=16G
+#SBATCH -o Rong_mageck_%j.out
+#SBATCH -e Rong_mageck_%j.err
 
 set -euo pipefail
 
 # =============================================================================
 # 1. Load Dardel modules
 # =============================================================================
-ml PDC/23.12
+ml PDC
 ml bioinfo-tools
-ml java/OracleJDK_11.0.9
+ml java/11        # Run "module spider java" if this fails
 ml miniconda3/25.3.1-1-cpeGNU-24.11
 ml nextflow/24.04.2
 ml singularity/4.1.1-cpeGNU-23.12
@@ -41,12 +41,12 @@ echo "  Singularity: $(singularity --version 2>&1)"
 # =============================================================================
 # 2. Configure paths — EDIT THESE for your Dardel allocation
 # =============================================================================
-PROJECT_DIR="/cfs/klemming/projects/<your-project>"
+PROJECT_DIR="/cfs/klemming/projects/supr/sllstore2017103/mubasher_workspace/Rong_data"
 
 # Test data (Rong_data nf_test — adjust paths to where you copied the files)
-COUNT_TABLE="${PROJECT_DIR}/Rong_data/nf_test/all_samples.count.txt"
-COMPARISONS="${PROJECT_DIR}/Rong_data/nf_test/comparisons.txt"
-OUTPUT_DIR="${PROJECT_DIR}/Rong_data/nf_test/results_singularity"
+COUNT_TABLE="${PROJECT_DIR}/all_samples.count.txt"
+COMPARISONS="${PROJECT_DIR}/comparisons.txt"
+OUTPUT_DIR="${PROJECT_DIR}/results_singularity"
 WORK_DIR="${PROJECT_DIR}/work"   # fast scratch I/O
 
 echo "=== Configuration ==="
